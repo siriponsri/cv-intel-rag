@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>CV Intel — Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #dc2626;        /* CV red */
+      --accent-hover: #b91c1c;
+      --border: #e5e7eb;
+      --user-bg: #fee2e2;
+      --bot-bg: #ffffff;
+      --cite: #2563eb;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Noto Sans Thai", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: .75rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { margin: 0; font-size: 1.1rem; }
+    header h1 .domain { color: var(--muted); font-weight: 400; font-size: .85rem; }
+    header nav a {
+      color: var(--accent); text-decoration: none; font-size: .9rem;
+      margin-left: 1rem; font-weight: 500;
+    }
+    main {
+      flex: 1; display: flex; flex-direction: column;
+      max-width: 960px; width: 100%; margin: 0 auto; padding: 1rem;
+      overflow: hidden;
+    }
+    #messages {
+      flex: 1; overflow-y: auto; padding: .5rem 0;
+      display: flex; flex-direction: column; gap: 1rem;
+    }
+    .msg {
+      padding: 1rem 1.25rem; border-radius: 12px; max-width: 85%;
+      line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;
+    }
+    .msg.user { background: var(--user-bg); align-self: flex-end; }
+    .msg.bot  { background: var(--bot-bg); border: 1px solid var(--border); align-self: flex-start; }
+    .msg .role { font-size: .7rem; color: var(--muted); text-transform: uppercase; margin-bottom: .25rem; }
+    .citations {
+      margin-top: .75rem; padding-top: .75rem; border-top: 1px dashed var(--border);
+      font-size: .85rem; color: var(--muted);
+    }
+    .citations a {
+      display: inline-block; background: #eff6ff; color: var(--cite);
+      padding: 2px 8px; border-radius: 4px; margin: 2px 4px 2px 0;
+      text-decoration: none; font-size: .8rem;
+    }
+    .sources {
+      margin-top: .75rem; padding: .75rem; background: #f9fafb;
+      border-radius: 6px; font-size: .8rem;
+    }
+    .sources summary { cursor: pointer; color: var(--muted); }
+    .sources .src-item {
+      margin: .5rem 0; padding: .5rem; background: white;
+      border-left: 3px solid var(--accent); border-radius: 4px;
+    }
+    .sources .src-item .num { font-weight: bold; color: var(--accent); }
+    .sources .src-item a { color: var(--cite); font-size: .8rem; }
+    footer {
+      border-top: 1px solid var(--border); background: var(--card);
+      padding: .75rem 1.25rem;
+    }
+    form { max-width: 960px; margin: 0 auto; display: flex; gap: .5rem; }
+    #input {
+      flex: 1; padding: .75rem 1rem; border: 1px solid var(--border);
+      border-radius: 8px; font-size: 1rem; font-family: inherit;
+      resize: none; min-height: 44px; max-height: 150px;
+    }
+    button {
+      padding: .75rem 1.5rem; background: var(--accent); color: white;
+      border: none; border-radius: 8px; cursor: pointer; font-weight: 500;
+      font-size: .95rem;
+    }
+    button:hover { background: var(--accent-hover); }
+    button:disabled { background: var(--muted); cursor: not-allowed; }
+    .empty {
+      text-align: center; color: var(--muted); padding: 3rem 1rem;
+    }
+    .empty h2 { font-size: 1.1rem; color: var(--text); margin-bottom: .5rem; }
+    .empty .examples {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: .5rem; margin-top: 1.5rem; max-width: 700px; margin-left: auto; margin-right: auto;
+    }
+    .empty .ex {
+      background: white; border: 1px solid var(--border); border-radius: 8px;
+      padding: .75rem; cursor: pointer; text-align: left; font-size: .85rem;
+      transition: border-color .15s;
+    }
+    .empty .ex:hover { border-color: var(--accent); }
+    .empty .ex strong { display: block; color: var(--text); margin-bottom: .25rem; }
+    .empty .ex span { color: var(--muted); font-size: .8rem; }
+    .typing { opacity: .6; font-style: italic; }
+    sup.cite-marker {
+      color: var(--cite); background: #eff6ff; padding: 1px 5px;
+      border-radius: 3px; font-size: .75rem; margin: 0 2px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🫀 CV Intel <span class="domain">— Cardiovascular · Diabetes · CKD</span></h1>
+    <nav>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/docs">API</a>
+      <a href="/health" id="health-link">Status</a>
+    </nav>
+  </header>
+
+  <main>
+    <div id="messages">
+      <div class="empty" id="empty-state">
+        <h2>ถามคำถามเกี่ยวกับยา/งานวิจัย/แนวทางรักษาในกลุ่ม CV + DM + CKD</h2>
+        <p>Ask anything about cardiovascular, diabetes, or CKD research, drugs, trials, or guidelines.</p>
+        <div class="examples">
+          <div class="ex" onclick="fillInput('มีข่าวใหม่เกี่ยวกับยา SGLT2 inhibitors ไหม?')">
+            <strong>🇹🇭 ตัวอย่างคำถาม</strong>
+            <span>มีข่าวใหม่เกี่ยวกับยา SGLT2 inhibitors ไหม?</span>
+          </div>
+          <div class="ex" onclick="fillInput('What are the latest FDA safety alerts for GLP-1 drugs?')">
+            <strong>🇺🇸 Example question</strong>
+            <span>What are the latest FDA safety alerts for GLP-1 drugs?</span>
+          </div>
+          <div class="ex" onclick="fillInput('มี clinical trial ใหม่เกี่ยวกับ heart failure ในคน CKD หรือไม่?')">
+            <strong>🇹🇭 Clinical trials</strong>
+            <span>มี clinical trial ใหม่เกี่ยวกับ heart failure ในคน CKD หรือไม่?</span>
+          </div>
+          <div class="ex" onclick="fillInput('Summarize recent guideline updates for atrial fibrillation')">
+            <strong>🇺🇸 Guidelines</strong>
+            <span>Summarize recent guideline updates for atrial fibrillation</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <form id="chat-form" onsubmit="return sendMessage(event)">
+      <textarea id="input" placeholder="พิมพ์คำถามของคุณ... (Shift+Enter เพื่อขึ้นบรรทัดใหม่)"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage(event);}"></textarea>
+      <button type="submit" id="send-btn">Send</button>
+    </form>
+  </footer>
+
+  <script>
+    const history = [];
+    const messagesEl = document.getElementById("messages");
+    const emptyState = document.getElementById("empty-state");
+    const inputEl = document.getElementById("input");
+    const sendBtn = document.getElementById("send-btn");
+
+    function fillInput(text) {
+      inputEl.value = text;
+      inputEl.focus();
+    }
+
+    function escapeHtml(s) {
+      return String(s || "").replace(/[&<>"']/g, m => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[m]));
+    }
+
+    function renderAnswer(text) {
+      // Make [S#] markers clickable
+      return escapeHtml(text).replace(/\[S(\d+)\]/g, '<sup class="cite-marker">[S$1]</sup>');
+    }
+
+    function appendMessage(role, text) {
+      if (emptyState) emptyState.style.display = "none";
+      const el = document.createElement("div");
+      el.className = `msg ${role}`;
+      el.innerHTML = `<div class="role">${role}</div><div class="content"></div>`;
+      el.querySelector(".content").innerHTML = renderAnswer(text);
+      messagesEl.appendChild(el);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return el;
+    }
+
+    function appendSources(botEl, sources) {
+      if (!sources || !sources.length) return;
+      const det = document.createElement("details");
+      det.className = "sources";
+      det.innerHTML = `<summary>📚 ${sources.length} sources retrieved (click to expand)</summary>`;
+      sources.forEach(s => {
+        const item = document.createElement("div");
+        item.className = "src-item";
+        const url = s.url ? `<a href="${escapeHtml(s.url)}" target="_blank">${escapeHtml(s.url)}</a>` : '';
+        item.innerHTML = `
+          <span class="num">[S${s.number}]</span>
+          <strong>${escapeHtml(s.title || '(no title)')}</strong>
+          <div style="color:#6b7280;font-size:.75rem;margin:.25rem 0;">
+            ${escapeHtml(s.source_name || '')} · ${escapeHtml(s.published_date || 'n/a')}
+          </div>
+          ${url}
+        `;
+        det.appendChild(item);
+      });
+      botEl.appendChild(det);
+    }
+
+    function appendCitations(botEl, citations) {
+      if (!citations || !citations.length) return;
+      const cite = document.createElement("div");
+      cite.className = "citations";
+      cite.innerHTML = "<strong>Cited:</strong> " + citations.map(c =>
+        c.url
+          ? `<a href="${escapeHtml(c.url)}" target="_blank">[S${c.number}] ${escapeHtml(c.title.slice(0,60))}</a>`
+          : `<span>[S${c.number}]</span>`
+      ).join(" ");
+      botEl.appendChild(cite);
+    }
+
+    async function sendMessage(ev) {
+      if (ev) ev.preventDefault();
+      const query = inputEl.value.trim();
+      if (!query) return false;
+
+      appendMessage("user", query);
+      history.push({ role: "user", content: query });
+      inputEl.value = "";
+      sendBtn.disabled = true;
+
+      const botEl = appendMessage("bot", "");
+      const contentEl = botEl.querySelector(".content");
+      contentEl.innerHTML = '<span class="typing">Retrieving sources…</span>';
+
+      try {
+        const resp = await fetch("/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, history: history.slice(0, -1) }),
+        });
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let answer = "";
+        let firstToken = true;
+        let sources = [];
+        let citations = [];
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let idx;
+          while ((idx = buffer.indexOf("\n\n")) >= 0) {
+            const block = buffer.slice(0, idx);
+            buffer = buffer.slice(idx + 2);
+            for (const line of block.split("\n")) {
+              if (!line.startsWith("data: ")) continue;
+              const payload = line.slice(6);
+              if (payload === "[DONE]") continue;
+              let ev;
+              try { ev = JSON.parse(payload); } catch { continue; }
+              if (ev.type === "sources") {
+                sources = ev.sources || [];
+              } else if (ev.type === "token") {
+                if (firstToken) {
+                  contentEl.innerHTML = "";
+                  firstToken = false;
+                }
+                answer += ev.content;
+                contentEl.innerHTML = renderAnswer(answer);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              } else if (ev.type === "citations") {
+                citations = ev.citations || [];
+              } else if (ev.type === "error") {
+                contentEl.innerHTML = `<em>Error: ${escapeHtml(ev.message)}</em>`;
+              }
+            }
+          }
+        }
+
+        appendCitations(botEl, citations);
+        appendSources(botEl, sources);
+        history.push({ role: "assistant", content: answer });
+      } catch (exc) {
+        contentEl.innerHTML = `<em>Connection error: ${escapeHtml(String(exc))}</em>`;
+      } finally {
+        sendBtn.disabled = false;
+        inputEl.focus();
+      }
+      return false;
+    }
+
+    inputEl.focus();
+  </script>
+</body>
+</html>

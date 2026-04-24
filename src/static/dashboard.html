@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>CV Intel — Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #dc2626;
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+      margin: 0; background: var(--bg); color: var(--text);
+    }
+    header {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: .75rem 1.25rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    header h1 { margin: 0; font-size: 1.1rem; }
+    header h1 .domain { color: var(--muted); font-weight: 400; font-size: .85rem; }
+    header nav a { color: var(--accent); text-decoration: none; margin-left: 1rem; font-size: .9rem; font-weight: 500; }
+    main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+    .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 1rem; flex: 1 1 180px;
+    }
+    .stat-card h3 { margin: 0 0 .25rem; font-size: .7rem; color: var(--muted); text-transform: uppercase; font-weight: 500; }
+    .stat-card .big { font-size: 1.75rem; font-weight: 600; color: var(--accent); }
+    .stat-card small { color: var(--muted); font-size: .75rem; }
+    .filters {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 1rem; margin-bottom: 1rem;
+      display: flex; gap: .5rem; flex-wrap: wrap; align-items: end;
+    }
+    .filters label { display: flex; flex-direction: column; font-size: .7rem; color: var(--muted); text-transform: uppercase; }
+    .filters input, .filters select {
+      padding: .45rem .6rem; font-size: .9rem; border: 1px solid var(--border);
+      border-radius: 6px; margin-top: .25rem; font-family: inherit;
+    }
+    .filters button {
+      padding: .5rem 1rem; background: var(--accent); color: white;
+      border: none; border-radius: 6px; cursor: pointer; font-weight: 500;
+    }
+    .records-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: .75rem; border-bottom: 1px solid var(--border); font-size: .9rem; vertical-align: top; }
+    th { background: var(--bg); font-weight: 600; font-size: .75rem; text-transform: uppercase; color: var(--muted); }
+    tr:last-child td { border-bottom: none; }
+    .badge {
+      display: inline-block; padding: .15rem .5rem; border-radius: 999px;
+      font-size: .7rem; font-weight: 500; background: #e0e7ff; color: #4338ca;
+    }
+    .badge.safety { background: #fee2e2; color: var(--accent); }
+    .badge.approval { background: #d1fae5; color: #065f46; }
+    .badge.guideline { background: #fef3c7; color: #92400e; }
+    .badge.trial { background: #dbeafe; color: #1e40af; }
+    .muted { color: var(--muted); font-size: .8rem; }
+    .title-cell a { color: var(--text); text-decoration: none; }
+    .title-cell a:hover { color: var(--accent); }
+    .empty { text-align: center; padding: 3rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🫀 CV Intel <span class="domain">— Dashboard</span></h1>
+    <nav>
+      <a href="/">Chat</a>
+      <a href="/docs">API</a>
+    </nav>
+  </header>
+  <main>
+    <div class="stat-row" id="stats"></div>
+
+    <div class="filters">
+      <label>Search<input id="q" placeholder="e.g. SGLT2, heart failure" /></label>
+      <label>Source
+        <select id="source"><option value="">All</option></select>
+      </label>
+      <label>Category
+        <select id="category">
+          <option value="">All</option>
+          <option value="drug_approval">Drug approval</option>
+          <option value="safety">Safety</option>
+          <option value="guideline">Guideline</option>
+          <option value="research">Research</option>
+          <option value="clinical_trial">Clinical trial</option>
+          <option value="regulator">Regulator</option>
+        </select>
+      </label>
+      <label>Region
+        <select id="region">
+          <option value="">All</option>
+          <option>Thailand</option><option>US</option><option>EU</option><option>Global</option>
+        </select>
+      </label>
+      <label>Days<input type="number" id="days" value="30" min="1" max="365" /></label>
+      <button onclick="refresh()">Refresh</button>
+    </div>
+
+    <div class="records-card">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:50%">Title</th>
+            <th>Source</th>
+            <th>Category</th>
+            <th>Region</th>
+            <th>Published</th>
+          </tr>
+        </thead>
+        <tbody id="records"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    async function fetchJSON(url) {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    }
+
+    function catBadge(cat) {
+      const map = {
+        safety: "safety", drug_approval: "approval",
+        guideline: "guideline", clinical_trial: "trial",
+      };
+      const cls = map[cat] || "";
+      return `<span class="badge ${cls}">${cat}</span>`;
+    }
+
+    function escapeHtml(s) {
+      return String(s || "").replace(/[&<>"']/g, m => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[m]));
+    }
+
+    async function loadStats() {
+      try {
+        const days = document.getElementById("days").value || 30;
+        const data = await fetchJSON("/stats?days=" + days);
+        const el = document.getElementById("stats");
+        el.innerHTML = `
+          <div class="stat-card"><h3>Records</h3><div class="big">${data.total_records}</div><small>last ${data.window_days} days</small></div>
+          <div class="stat-card"><h3>Vector chunks</h3><div class="big">${data.vector_chunks || 0}</div><small>indexed in ChromaDB</small></div>
+          <div class="stat-card"><h3>Sources</h3><div class="big">${Object.keys(data.by_source).length}</div><small>active connectors</small></div>
+          <div class="stat-card"><h3>Categories</h3><div class="big">${Object.keys(data.by_category).length}</div><small>covered</small></div>
+        `;
+        const srcSel = document.getElementById("source");
+        const existing = new Set([...srcSel.options].map(o => o.value));
+        Object.keys(data.by_source).forEach(s => {
+          if (!existing.has(s)) {
+            const opt = document.createElement("option");
+            opt.value = s; opt.textContent = s;
+            srcSel.appendChild(opt);
+          }
+        });
+      } catch (e) {
+        document.getElementById("stats").innerHTML =
+          `<div class="stat-card">Error: ${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function buildQueryString() {
+      const params = new URLSearchParams();
+      const fields = { q: "q", source: "source", category: "category", region: "region", days: "days" };
+      for (const [id, name] of Object.entries(fields)) {
+        const v = document.getElementById(id).value;
+        if (v) params.set(name, v);
+      }
+      params.set("limit", "100");
+      return params.toString();
+    }
+
+    async function loadRecords() {
+      const tbody = document.getElementById("records");
+      tbody.innerHTML = `<tr><td colspan="5" class="empty">Loading…</td></tr>`;
+      try {
+        const data = await fetchJSON("/records?" + buildQueryString());
+        if (!data.records.length) {
+          tbody.innerHTML = `<tr><td colspan="5" class="empty">No records. Run an ingestion first: <code>python scripts/run_ingestion.py --connector rss_medwatch</code></td></tr>`;
+          return;
+        }
+        tbody.innerHTML = data.records.map(r => `
+          <tr>
+            <td class="title-cell">
+              <a href="${r.url || '#'}" target="_blank">${escapeHtml(r.title)}</a>
+              ${r.summary_short ? `<div class="muted">${escapeHtml(r.summary_short.slice(0,140))}…</div>` : ""}
+            </td>
+            <td>${escapeHtml(r.source_name)}</td>
+            <td>${catBadge(r.category)}</td>
+            <td>${escapeHtml(r.country_or_region)}</td>
+            <td class="muted">${r.published_date || "—"}</td>
+          </tr>
+        `).join("");
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty">Error: ${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    function refresh() {
+      loadStats();
+      loadRecords();
+    }
+
+    refresh();
+  </script>
+</body>
+</html>

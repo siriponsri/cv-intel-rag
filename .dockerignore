@@ -1,0 +1,19 @@
+# Never include local secrets or dev artifacts in the image
+.env
+.git/
+.github/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+
+# Not needed in production
+tests/
+notebooks/
+docs/
+*.md
+!README.md
+
+# Built on Colab, copied in fresh
+data/raw/*
+!data/raw/.gitkeep

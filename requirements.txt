@@ -1,0 +1,41 @@
+# ─── Core framework ──────────────────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+
+# ─── Database ─────────────────────────────────────────────
+sqlalchemy>=2.0.25
+# psycopg2-binary>=2.9.9            # uncomment for PostgreSQL
+
+# ─── HTTP + Scraping ─────────────────────────────────────
+httpx>=0.27.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+feedparser>=6.0.11
+lxml>=5.1.0
+
+# ─── LLM providers (OpenAI-compatible; use for Typhoon + vLLM self-host) ─
+openai>=1.40.0
+
+# ─── RAG stack ───────────────────────────────────────────
+chromadb>=0.5.0                      # embedded vector DB
+sentence-transformers>=3.0.0         # BGE-M3 embedder
+rank-bm25>=0.2.2                     # hybrid search (BM25 + dense)
+tiktoken>=0.7.0                      # token counting
+
+# ─── Thai NLP ───────────────────────────────────────────
+pythainlp>=5.0.0
+
+# ─── PDF handling (guidelines, drug labels) ─────────────
+pdfplumber>=0.10.3
+pymupdf>=1.24.0
+
+# ─── Utilities ────────────────────────────────────────────
+python-dotenv>=1.0.1
+python-dateutil>=2.8.2
+pyyaml>=6.0.1
+
+# ─── Dev + Testing ──────────────────────────────────────
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

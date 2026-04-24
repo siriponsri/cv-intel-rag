@@ -1,0 +1,60 @@
+# ─── Env & secrets ───
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*-secret*
+*secret-*
+
+# ─── Python ───
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ─── Data (large; use git-lfs to commit pre-built index for HF Space) ───
+data/*.db
+data/*.db-journal
+data/chroma/
+data/raw/*
+!data/raw/.gitkeep
+data/*.tar.gz
+data/*.zip
+
+# ─── HF / ML caches ───
+.hf_cache/
+.cache/
+models/
+*.safetensors
+*.bin
+
+# ─── Notebooks — outputs are noisy in diffs ───
+# (comment this line if you want committed outputs for HF Space visibility)
+# *.ipynb
+.ipynb_checkpoints/
+
+# ─── IDE ───
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── OS ───
+.DS_Store
+Thumbs.db
+
+# ─── Logs ───
+*.log
+logs/
+

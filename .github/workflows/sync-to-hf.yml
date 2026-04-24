@@ -1,0 +1,39 @@
+name: Sync to Hugging Face Space
+
+# Auto-push to HF Space on every push to main.
+# Prereqs (set in GitHub repo Settings → Secrets and variables → Actions):
+#   HF_TOKEN     — token from https://huggingface.co/settings/tokens (Write access)
+#   HF_USERNAME  — your HF username
+#   HF_SPACE     — space name (e.g. "cv-intel-rag")
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to HF Space
+        env:
+          HF_TOKEN:    ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+          HF_SPACE:    ${{ secrets.HF_SPACE }}
+        run: |
+          if [ -z "$HF_TOKEN" ] || [ -z "$HF_USERNAME" ] || [ -z "$HF_SPACE" ]; then
+            echo "❌ Missing one of HF_TOKEN / HF_USERNAME / HF_SPACE secrets."
+            echo "   Set them in GitHub → Settings → Secrets → Actions"
+            exit 1
+          fi
+          git config user.email "gh-action@github.com"
+          git config user.name  "GitHub Action"
+          git remote add space "https://${HF_USERNAME}:${HF_TOKEN}@huggingface.co/spaces/${HF_USERNAME}/${HF_SPACE}"
+          git push space main --force
+          echo "✅ Synced to https://huggingface.co/spaces/${HF_USERNAME}/${HF_SPACE}"
