@@ -63,9 +63,17 @@ class RSSConnector(BaseConnector):
         self.rate_limit()
         log.info("[RSS %s] fetching %s", self.cfg.source_name, self.url)
         parsed = feedparser.parse(self.url)
-        if parsed.bozo and not parsed.entries:
-            log.warning("[RSS %s] parse error: %s", self.cfg.source_name, parsed.bozo_exception)
+        if not parsed.entries:
+            # Only skip if there are genuinely no entries.
+            # bozo=True means the XML had minor issues (e.g. encoding chars)
+            # but feedparser still parsed the entries — don't discard them.
+            log.warning("[RSS %s] no entries (bozo=%s: %s)",
+                        self.cfg.source_name, parsed.bozo,
+                        getattr(parsed, 'bozo_exception', ''))
             return
+        if parsed.bozo:
+            log.debug("[RSS %s] bozo warning (entries still present): %s",
+                      self.cfg.source_name, getattr(parsed, 'bozo_exception', ''))
 
         yielded = 0
         for entry in parsed.entries:

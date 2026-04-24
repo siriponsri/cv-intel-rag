@@ -30,7 +30,7 @@ class OpenFDAConnector(BaseConnector):
 
     def __init__(
         self,
-        days_back: int = 30,
+        days_back: int = 180,
         cfg: Optional[ConnectorConfig] = None,
     ):
         super().__init__(cfg or ConnectorConfig(

@@ -23,7 +23,7 @@ class ClinicalTrialsConnector(BaseConnector):
     def __init__(
         self,
         conditions: Optional[list[str]] = None,
-        days_back: int = 14,
+        days_back: int = 180,
         cfg: Optional[ConnectorConfig] = None,
     ):
         super().__init__(cfg or ConnectorConfig(

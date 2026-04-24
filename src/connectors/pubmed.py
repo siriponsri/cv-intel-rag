@@ -27,7 +27,7 @@ class PubMedConnector(BaseConnector):
     def __init__(
         self,
         queries: Optional[list[str]] = None,
-        days_back: int = 7,
+        days_back: int = 90,
         cfg: Optional[ConnectorConfig] = None,
     ):
         super().__init__(cfg or ConnectorConfig(
