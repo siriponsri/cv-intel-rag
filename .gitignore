@@ -39,6 +39,10 @@ models/
 *.safetensors
 *.bin
 
+# Exception: src/models/ is a Python package (not ML weights) — must be tracked
+!src/models/
+!src/models/**
+
 # ─── Notebooks — outputs are noisy in diffs ───
 # (comment this line if you want committed outputs for HF Space visibility)
 # *.ipynb
