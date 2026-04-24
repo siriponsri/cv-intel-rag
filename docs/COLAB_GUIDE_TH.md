@@ -1,134 +1,251 @@
-# 📓 Colab Guide (ภาษาไทย)
+# คู่มือการใช้งาน Google Colab — CV Intel RAG
 
-เดินตามขั้นตอนนี้เพื่อรัน CV Intel RAG บน Google Colab ฟรี (T4 GPU)
+**ระดับ:** มือใหม่ | **เวลาโดยประมาณ:** 15–20 นาที (ไม่รวมเวลา run notebook)
 
-**แนวคิด:** 2 notebooks แยกกัน แต่ใช้ **Google Drive folder เดียวกัน** เป็นที่เก็บ index
+คู่มือฉบับนี้อธิบายขั้นตอนการรัน CV Intel RAG บน Google Colab แบบฟรี (T4 GPU) ทีละขั้นตอน เหมาะสำหรับผู้ที่ไม่มีเครื่องที่มี GPU หรือต้องการทดสอบระบบโดยไม่ติดตั้งบนเครื่องตัวเอง
+
+---
+
+## สารบัญ
+
+1. [ภาพรวมและแนวคิด](#1-ภาพรวมและแนวคิด)
+2. [สิ่งที่ต้องเตรียมก่อนเริ่ม](#2-สิ่งที่ต้องเตรียมก่อนเริ่ม)
+3. [Notebook 1 — Ingest and Index](#3-notebook-1--ingest-and-index)
+4. [Notebook 2 — Demo and Visualization](#4-notebook-2--demo-and-visualization)
+5. [การใช้ข้อมูลซ้ำใน Session ใหม่](#5-การใช้ข้อมูลซ้ำใน-session-ใหม่)
+6. [การอัปเดต Corpus รายสัปดาห์](#6-การอัปเดต-corpus-รายสัปดาห์)
+7. [ปัญหาที่พบบ่อยและวิธีแก้ไข](#7-ปัญหาที่พบบ่อยและวิธีแก้ไข)
+
+---
+
+## 1. ภาพรวมและแนวคิด
+
+### สถาปัตยกรรมของ 2 Notebooks
+
+ระบบนี้แบ่งออกเป็น 2 notebooks ที่ทำงานร่วมกันผ่าน **Google Drive folder เดียวกัน**
 
 ```
-MyDrive/cv-intel-rag/            ← shared folder
+Google Drive: MyDrive/cv-intel-rag/
 ├── data/
-│   ├── cv_intel.db              ← SQLite (ingest output)
-│   ├── chroma/                  ← ChromaDB (embed output)
-│   └── cv-intel-rag-data.tar.gz ← สำหรับ upload ขึ้น HF Space
+│   ├── cv_intel.db                  ← SQLite database (ผลลัพธ์จาก Notebook 1)
+│   ├── chroma/                      ← ChromaDB vector store (ผลลัพธ์จาก Notebook 1)
+│   └── cv-intel-rag-data.tar.gz     ← Archive สำหรับ deploy ขึ้น HF Spaces
 └── logs/
 
-01_ingest_and_index.ipynb  ─► เขียนลง folder นี้ (รัน 1 ครั้ง ~10 นาที)
-02_demo_visualization.ipynb ─► อ่านจาก folder นี้ (รันเมื่อไหร่ก็ได้ ~1 นาที)
+Notebook 1: 01_ingest_and_index.ipynb
+→ ดึงข้อมูลจาก 7 แหล่ง
+→ แบ่ง text เป็น chunks
+→ สร้าง BGE-M3 embeddings
+→ บันทึกลง Drive
+→ รัน 1 ครั้ง (ใช้เวลา ~10 นาที บน T4 GPU)
+
+Notebook 2: 02_demo_visualization.ipynb
+→ โหลดข้อมูลจาก Drive
+→ แสดง visualizations
+→ ทดสอบคำถามจริง
+→ รันเมื่อไหรก็ได้ (ใช้เวลา ~1 นาที)
 ```
 
----
-
-## 🔑 Step 0 — เตรียม Typhoon API key
-
-1. ไปที่ [playground.opentyphoon.ai/settings/api-key](https://playground.opentyphoon.ai/settings/api-key) → สร้าง API key
-2. **จำไว้** — จะใช้ใน Colab Secrets ทั้ง 2 notebooks
+**เหตุผลที่แยกเป็น 2 notebooks:** การสร้าง embeddings ใช้เวลานานและต้อง GPU ทำเพียงครั้งเดียวก็เพียงพอ ส่วน notebook 2 โหลดข้อมูลที่สร้างแล้วจาก Drive ทำให้ demo รวดเร็ว
 
 ---
 
-## 📘 Notebook 1 — Ingest & Index (รัน 1 ครั้งพอ)
+## 2. สิ่งที่ต้องเตรียมก่อนเริ่ม
 
-### 1.1 เปิด notebook
+### 2.1 บัญชีที่ต้องมี
 
-1. Upload `notebooks/01_ingest_and_index.ipynb` เข้า Google Colab
-2. **Runtime → Change runtime type → T4 GPU** (สำคัญมาก ถ้าไม่เปิด GPU ช้ากว่า 10 เท่า)
+| บัญชี | ฟรี | ลิงก์สมัคร |
+|-------|-----|-----------|
+| Google Account (สำหรับ Colab + Drive) | ✅ | [accounts.google.com](https://accounts.google.com) |
+| Typhoon API Key | ✅ | [playground.opentyphoon.ai](https://playground.opentyphoon.ai/settings/api-key) |
+| GitHub Account (สำหรับ clone repo) | ✅ | [github.com/join](https://github.com/join) |
 
-### 1.2 ตั้ง Colab Secret
+### 2.2 การขอ Typhoon API Key
 
-1. คลิกไอคอน 🔑 Secrets ที่แถบซ้าย
-2. **+ Add new secret**
-3. Name: `TYPHOON_API_KEY` · Value: key ที่ได้จาก Step 0
-4. Toggle **Notebook access** ON
+1. เปิดเบราว์เซอร์ไปที่ [playground.opentyphoon.ai/settings/api-key](https://playground.opentyphoon.ai/settings/api-key)
+2. ล็อกอินด้วย Google Account
+3. กดปุ่ม **Create new secret key**
+4. ตั้งชื่อ key เช่น `colab-cv-intel`
+5. คัดลอก key ที่ขึ้นต้นด้วย `sk-` และเก็บไว้ (จะนำไปใส่ใน Colab Secrets)
 
-### 1.3 แก้ repo URL
+> **สำคัญ:** Key นี้จะแสดงเพียงครั้งเดียว หากปิดหน้าต่างโดยไม่คัดลอก ต้องสร้างใหม่
 
-ในเซลล์ **Step 4** เปลี่ยน `YOUR_USERNAME` เป็น GitHub username ของคุณ:
+---
+
+## 3. Notebook 1 — Ingest and Index
+
+Notebook นี้ทำงานหลัก 3 อย่าง: ดึงข้อมูล → แบ่ง chunks → สร้าง embeddings ใช้เวลาประมาณ 10 นาทีบน T4 GPU และต้องรันเพียงครั้งเดียว
+
+### ขั้นตอนที่ 3.1 — เปิด Notebook บน Colab
+
+1. ไปที่ [colab.research.google.com](https://colab.research.google.com)
+2. คลิกแถบ **GitHub** ในหน้าต่าง "Open notebook"
+3. ใส่ URL: `https://github.com/siriponsri/cv-intel-rag`
+4. เลือก `notebooks/01_ingest_and_index.ipynb`
+
+**หรือ** upload ไฟล์ตรงจากเครื่อง:
+1. คลิก **Upload** ในหน้าต่าง "Open notebook"
+2. เลือกไฟล์ `notebooks/01_ingest_and_index.ipynb` จากโฟลเดอร์โปรเจกต์
+
+### ขั้นตอนที่ 3.2 — เปิดใช้งาน T4 GPU
+
+> **สำคัญมาก:** หากไม่เปิด GPU ขั้นตอน embedding จะช้ากว่าปกติประมาณ 10 เท่า
+
+1. คลิกเมนู **Runtime** (แถบเมนูด้านบน)
+2. เลือก **Change runtime type**
+3. ในหัวข้อ **Hardware accelerator** เลือก **T4 GPU**
+4. กดปุ่ม **Save**
+
+**ตรวจสอบ:** มุมบนขวาของหน้าจะแสดง `T4` แทน `CPU`
+
+### ขั้นตอนที่ 3.3 — ตั้งค่า Colab Secrets
+
+Colab Secrets คือวิธีที่ปลอดภัยในการเก็บ API keys โดยไม่ให้ปรากฏใน notebook code
+
+1. คลิกไอคอนรูป **กุญแจ** (🔑 Secrets) ที่แถบด้านซ้ายของ Colab
+2. คลิก **+ Add new secret**
+3. กรอกข้อมูล:
+   - **Name:** `TYPHOON_API_KEY`  *(ต้องสะกดตรงทุกตัวอักษร)*
+   - **Value:** API key ที่คัดลอกไว้จากขั้นตอน 2.2
+4. กด toggle **Notebook access** ให้เป็นสีน้ำเงิน (เปิด)
+5. กดปุ่ม **Save**
+
+### ขั้นตอนที่ 3.4 — แก้ไข Repository URL (ถ้าจำเป็น)
+
+ค้นหา cell ที่มีคำสั่ง `git clone` และตรวจสอบว่า URL ถูกต้อง:
 
 ```python
-!git clone https://github.com/YOUR_USERNAME/cv-intel-rag.git
+!git clone https://github.com/siriponsri/cv-intel-rag.git
 ```
 
-### 1.4 รันทั้งหมด
+หากคุณ fork repo มา ให้เปลี่ยน `siriponsri` เป็น GitHub username ของคุณ
 
-**Runtime → Run all**
+### ขั้นตอนที่ 3.5 — รัน Notebook ทั้งหมด
 
-จะเห็น:
-- ⏱ Step 6 (ingestion) ~3 นาที — bar chart แสดง records ต่อ source
-- ⏱ Step 7 (embedding) ~7 นาที — ครั้งแรกจะดาวน์โหลด BGE-M3 (2.3 GB)
-- 📦 Step 9 สร้าง `data/cv-intel-rag-data.tar.gz` ใน Drive
+1. คลิกเมนู **Runtime**
+2. เลือก **Run all** (หรือกด `Ctrl+F9`)
+3. ถ้า Colab แสดง popup ถามว่า "This notebook was not authored by Google" ให้กด **Run anyway**
 
-### 1.5 ยืนยัน
+**สิ่งที่จะเห็นระหว่างรัน:**
 
-เปิด Google Drive → `MyDrive/cv-intel-rag/data/` ต้องเห็น:
-- `cv_intel.db` (~5 MB)
-- `chroma/` folder
-- `cv-intel-rag-data.tar.gz` (~20-50 MB ขึ้นกับจำนวน records)
+| ขั้นตอน | สิ่งที่จะเห็น | เวลาโดยประมาณ |
+|---------|--------------|--------------|
+| ติดตั้ง packages | แถบความคืบหน้าและ log ของ pip | 2–3 นาที |
+| Mount Google Drive | popup ขอสิทธิ์ — กด **Connect to Google Drive** | 30 วินาที |
+| Ingestion | log แสดงจำนวน records ต่อแหล่ง | 3–4 นาที |
+| ดาวน์โหลด BGE-M3 | log แสดงการดาวน์โหลด 2.3 GB (ครั้งแรกเท่านั้น) | 3–5 นาที |
+| Embedding | แถบ progress ต่อ batch | 2–3 นาที |
+| บันทึกลง Drive | log `Saved to drive` | 30 วินาที |
 
----
+### ขั้นตอนที่ 3.6 — ตรวจสอบผลลัพธ์
 
-## 📗 Notebook 2 — Demo & Visualization (รันเมื่อไหร่ก็ได้)
+หลังจาก notebook รันเสร็จสมบูรณ์ ตรวจสอบใน Google Drive:
 
-**เป้าหมาย:** นำเสนอลูกค้า — โหลดจาก Drive → show pipeline step-by-step ไม่ต้อง re-embed
+1. เปิด [drive.google.com](https://drive.google.com)
+2. ไปที่โฟลเดอร์ `MyDrive/cv-intel-rag/data/`
+3. ตรวจสอบว่ามีไฟล์และโฟลเดอร์ต่อไปนี้:
+   - `cv_intel.db` (ขนาดประมาณ 3–10 MB)
+   - โฟลเดอร์ `chroma/` (ขนาดประมาณ 20–100 MB)
+   - `cv-intel-rag-data.tar.gz` (ไฟล์รวมสำหรับ deploy)
 
-### 2.1 เปิด notebook
-
-1. Upload `notebooks/02_demo_visualization.ipynb` เข้า Colab ใหม่ (แยกจาก notebook 1 ได้)
-2. **Runtime → T4 GPU** (หรือ CPU ก็ได้ถ้าไม่รีบ)
-3. เพิ่ม `TYPHOON_API_KEY` ใน Secrets เหมือนเดิม
-4. แก้ repo URL เหมือนเดิม
-
-### 2.2 รันทั้งหมด
-
-Runtime → Run all — ใช้เวลา ~60 วินาที (latency ขึ้นกับ Typhoon API)
-
-### 2.3 สิ่งที่ลูกค้าจะเห็น
-
-| Step | หน้าจอ | Sales angle |
-|---|---|---|
-| 2 | Bar + Pie + Timeline charts | "นี่คือ corpus ที่เรารวบรวมไว้ — 7 sources, ครอบคลุม X records ถึง..." |
-| 3 | Query → embedding → top-k chunks bar chart | "พอลูกค้าถาม ระบบ embed คำถามเป็น vector 1024 มิติ แล้วหา chunks คล้ายกัน top 5" |
-| 4 | 5 คำถามจริง (ไทย+อังกฤษ) + [S#] citations | "ดูไหม คำตอบอ้างอิง 3 sources พร้อมลิงก์กลับไปดูต้นฉบับ" |
-| 5 | Latency bar chart | "เฉลี่ย ~3-5 วินาที/query — เร็วพอสำหรับ interactive use" |
-| 6 | Source × Category heatmap | "ไม่ได้พึ่ง PubMed อย่างเดียว — triangulate ทุก source" |
-
-### 2.4 Tips ขายงาน
-
-- **Save as PDF** ตอนจบ (File → Print → Save as PDF) — ใช้เป็น leave-behind หลังประชุม
-- **ใส่คำถามของลูกค้าเอง** ในเซลล์ Step 3/4 ก่อนรัน — ลูกค้าจะเห็นว่าระบบตอบโจทย์ **ของเขา** ได้จริง
-- **สลับ query ไทย/อังกฤษ** — BGE-M3 ทำงานทั้งคู่โดยไม่ต้อง config
+หากไฟล์เหล่านี้ปรากฏครบ Notebook 1 เสร็จสมบูรณ์แล้ว
 
 ---
 
-## 💾 ใช้ data ซ้ำใน session ใหม่
+## 4. Notebook 2 — Demo and Visualization
 
-Colab ปิด runtime → data ใน `/content/` หาย แต่ Drive ยังอยู่
+Notebook นี้โหลดข้อมูลจาก Drive และแสดงตัวอย่างการใช้งานระบบ ใช้เวลาเพียง 1–2 นาที
 
-- Notebook 1: ไม่ต้องรันซ้ำ ถ้า corpus เดิมใช้ได้ (อยากรีเฟรชค่อยรันใหม่)
-- Notebook 2: เปิด demo ใหม่ → mount Drive → ใช้ต่อได้ทันที
+### ขั้นตอนที่ 4.1 — เปิด Notebook
+
+ทำขั้นตอนเดียวกับ Notebook 1 แต่เลือกไฟล์ `notebooks/02_demo_visualization.ipynb`
+
+> Notebook 2 สามารถเปิดใน Colab session ใหม่แยกจาก Notebook 1 ได้ทั้งหมด ข้อมูลจะโหลดจาก Drive
+
+### ขั้นตอนที่ 4.2 — ตั้งค่า Runtime และ Secrets
+
+ทำซ้ำขั้นตอน 3.2 และ 3.3 ทั้งหมด (T4 GPU + TYPHOON_API_KEY secret)
+
+### ขั้นตอนที่ 4.3 — รัน Notebook ทั้งหมด
+
+รัน **Runtime → Run all** เช่นเดิม
+
+### ขั้นตอนที่ 4.4 — ผลลัพธ์ที่จะเห็นในแต่ละ Section
+
+**Section 1 — สถิติ Corpus:**
+แสดง bar chart จำนวน records ต่อแหล่งข้อมูล, pie chart สัดส่วน category และ timeline การ publish ข้อมูล
+
+**Section 2 — RAG Pipeline Visualization:**
+แสดง query ตัวอย่าง → embedding vector → bar chart ของ top-k chunks ที่ค้นพบพร้อมค่า similarity score
+
+**Section 3 — ตัวอย่างคำถาม-คำตอบ:**
+ทดสอบคำถาม 5 ข้อทั้งภาษาไทยและอังกฤษ คำตอบแต่ละข้อจะมี citation `[S1]`, `[S2]` พร้อมชื่อแหล่งอ้างอิง
+
+**Section 4 — Latency Analysis:**
+แสดง bar chart เวลาตอบของแต่ละ query เปรียบเทียบ retrieval time vs. LLM generation time
+
+**Section 5 — Source × Category Heatmap:**
+แสดง heatmap แสดงความครอบคลุมข้อมูลว่าแต่ละแหล่งมีข้อมูลประเภทไหนบ้าง
+
+### ขั้นตอนที่ 4.5 — การปรับแต่ง Query สำหรับการนำเสนอ
+
+หากต้องการเปลี่ยนคำถามใน Section 3 ให้แก้ไข cell ที่มี:
+
+```python
+DEMO_QUERIES = [
+    "What are the cardiovascular benefits of SGLT2 inhibitors?",
+    "ยา GLP-1 receptor agonist มีผลต่อไตอย่างไร",
+    # เพิ่มคำถามของคุณที่นี่
+]
+```
+
+> **เทคนิค:** ใส่คำถามที่เกี่ยวข้องกับงานของผู้รับฟังโดยตรง เพื่อให้เห็นว่าระบบตอบโจทย์ที่แท้จริงได้
 
 ---
 
-## 🔄 Refresh corpus รายสัปดาห์
+## 5. การใช้ข้อมูลซ้ำใน Session ใหม่
 
-รัน notebook 1 ซ้ำทุกสัปดาห์ → `run_ingestion.py` upsert ได้ (ไม่ duplicate) → index อัพเดตอัตโนมัติ
+Google Colab จะลบข้อมูลใน `/content/` ทุกครั้งที่ runtime ถูกปิด แต่ข้อมูลใน Google Drive ยังคงอยู่
 
-ถ้าอยากให้รันอัตโนมัติ:
-- Cron-style ใน HF Space (Dockerfile CMD + cron job)
-- หรือ GitHub Actions scheduled workflow
-
----
-
-## ❗ Troubleshooting
-
-| ปัญหา | วิธีแก้ |
-|---|---|
-| "TYPHOON_API_KEY not set" | ตรวจ Secrets ว่า toggle **Notebook access** ON แล้วหรือยัง |
-| Notebook 2 error "DB not found" | รัน notebook 1 จนจบก่อน + ตรวจ path `MyDrive/cv-intel-rag/data/` |
-| BGE-M3 download hang | ยกเลิก → Runtime → Disconnect and delete → Connect ใหม่ → รันใหม่ |
-| GPU quota exceeded | Colab free tier จำกัด GPU ต่อวัน รอ 12-24 ชม. หรือซื้อ Colab Pro |
-| Drive mount ไม่ได้ | Runtime → Disconnect → Connect → Run cell `drive.mount(...)` ใหม่ |
+**การเปิด Demo ครั้งต่อไป:**
+1. เปิด Notebook 2 ใน Colab session ใหม่
+2. ตั้งค่า Runtime type และ Secret ตามปกติ
+3. รัน **Run all** — ระบบจะ mount Drive และโหลดข้อมูลที่มีอยู่แล้ว
+4. **ไม่ต้องรัน Notebook 1 ซ้ำ** (เว้นแต่ต้องการ refresh corpus)
 
 ---
 
-## ขั้นต่อไป
+## 6. การอัปเดต Corpus รายสัปดาห์
 
-พร้อม deploy ขึ้น production แล้ว? → ดู [`DEPLOY_GUIDE_TH.md`](./DEPLOY_GUIDE_TH.md)
+หากต้องการให้ข้อมูลเป็นปัจจุบัน ควรรัน Notebook 1 ซ้ำสัปดาห์ละครั้ง
+
+ระบบออกแบบให้รองรับการ upsert — ถ้ามี record ที่ source ID ซ้ำกัน ระบบจะ update แทนที่จะ insert ซ้ำ ดังนั้นจึงไม่มีข้อมูล duplicate
+
+**ขั้นตอน:**
+1. เปิด Notebook 1 ใน Colab
+2. รัน Run all ตามปกติ
+3. ระบบจะดึงเฉพาะข้อมูลใหม่ที่ publish หลังจากการ ingest ครั้งก่อน
+
+**ตัวเลือกการทำ Automation:**
+- **GitHub Actions Scheduled Workflow:** trigger ทุกวันจันทร์ผ่าน `schedule: cron`
+- **Hugging Face Space:** ใส่ cron job ใน Dockerfile CMD สำหรับการ ingest อัตโนมัติ
+
+---
+
+## 7. ปัญหาที่พบบ่อยและวิธีแก้ไข
+
+| อาการ | สาเหตุที่เป็นไปได้ | วิธีแก้ไข |
+|-------|-------------------|-----------|
+| `KeyError: 'TYPHOON_API_KEY'` | Secret ยังไม่ได้ตั้งค่า หรือ toggle Notebook access ยังปิดอยู่ | ไปที่ไอคอน 🔑 Secrets และตรวจสอบว่า toggle เปิดแล้ว |
+| Notebook 2 error `DB file not found` | Notebook 1 ยังไม่รันจนเสร็จ หรือ path Drive ไม่ถูกต้อง | ตรวจสอบว่ามีไฟล์ `cv_intel.db` ใน `MyDrive/cv-intel-rag/data/` |
+| BGE-M3 download หยุดค้าง | การเชื่อมต่อหลุดระหว่างดาวน์โหลด 2.3 GB | คลิก **Runtime → Disconnect and delete runtime** แล้วเชื่อมต่อใหม่และรันใหม่ |
+| `You've used all your GPU quota` | Colab free tier จำกัด GPU usage ต่อวัน | รอ 12–24 ชั่วโมง หรือพิจารณา [Colab Pro](https://colab.research.google.com/signup) |
+| Google Drive mount ล้มเหลว | Session หมดอายุ หรือ popup ถูก block | Disconnect runtime แล้ว Connect ใหม่ จากนั้นรัน cell `drive.mount(...)` แยก |
+| Ingestion ได้ 0 records จาก PubMed | IP ของ Colab อาจถูก rate limit ชั่วคราว | รออีก 5 นาทีแล้วรัน cell ingestion ซ้ำ |
+| คำตอบใน Notebook 2 ว่างเปล่า | Typhoon API timeout | ตรวจสอบ API key และลองรัน cell นั้นซ้ำด้วย `Ctrl+Enter` |
+
+---
+
+## ขั้นตอนถัดไป
+
+พร้อม deploy ระบบขึ้น production แล้วหรือยัง? ดูคู่มือ [`DEPLOY_GUIDE_TH.md`](./DEPLOY_GUIDE_TH.md) สำหรับขั้นตอนการ deploy บน Hugging Face Spaces (ฟรี, มี public URL)
