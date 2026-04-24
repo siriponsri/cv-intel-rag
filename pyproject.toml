@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "cv-intel-rag"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+# Tell setuptools to find all packages inside the repo root.
+# This registers `src`, `src.config`, `src.connectors`, etc. as proper
+# installed packages so that relative imports work even when Colab's
+# Python environment has a conflicting `src` namespace package.
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+# ── Linting / formatting ──────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+# ── Testing ───────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
